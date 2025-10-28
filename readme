@@ -1,0 +1,23 @@
+# Massive Crafting Kit — 1B+ Virtual Items
+
+This kit gives you a *procedurally generated* crafting system with a **virtual** space of over a billion items and components — no huge downloads, no database, no API keys.
+
+## How it works
+- Every numeric ID maps deterministically to 2–4 types using a fast PRNG (Mulberry32).
+- Items: `Item-<ID>`, Components: `Comp-<ID>`.
+- Weakness rules decide if your crafted item beats the target (if any crafted type is a weakness of the target).
+
+## Files
+- `index.html` — the full app (UI + logic).
+- `worker.js` — a Web Worker that scans giant ID ranges for component matches without freezing the UI.
+
+## Use
+1. Open `index.html` in a browser.
+2. Pick a target ID, see its types & weaknesses.
+3. Select components from the generated page (or scan for matches in **Combos Scanner**).
+4. Hit **Craft** to check if you beat the target.
+
+### Tips
+- Press **R** to refresh the component page (new random sample).
+- Use **Combos Scanner** to search huge ranges quickly; it will stop after `Max results`.
+- Everything is local and free. **No API key** required.

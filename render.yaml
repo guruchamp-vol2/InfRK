@@ -1,0 +1,12 @@
+services:
+  - type: web
+    name: infrk
+    env: static
+    buildCommand: echo "No build needed - static files"
+    staticPublishPath: ./
+    domains:
+      - infrk.onrender.com
+    routes:
+      - type: rewrite
+        source: /*
+        destination: /index.html
