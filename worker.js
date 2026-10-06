@@ -1,84 +1,24 @@
-// Web Worker: scans large ranges of component IDs for matches
-function mulberry32(a) {
-  return function() {
-    var t = a += 0x6D2B79F5;
-    t = Math.imul(t ^ (t >>> 15), t | 1);
-    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+importScripts('progression.js','crafting-core.js');
+onmessage=e=>{
+  const data=e.data || {};
+  const {action,TYPES,weaknesses=[],sample=false}=data;
+  const start=Number(data.start ?? 0),count=Number(data.count),maxRes=Number(data.maxRes ?? 1000),spaceSize=Number(data.spaceSize ?? 1000000000);
+  if((action != null && !['sequential','samplePool'].includes(action)) || !Array.isArray(TYPES) || !TYPES.length || TYPES.length>100 || !TYPES.every(t=>typeof t==='string') || !Array.isArray(weaknesses) ||
+     !CraftingCore.validId(start) || !Number.isSafeInteger(count) || count<1 || count>1000000 ||
+     !Number.isSafeInteger(maxRes) || maxRes<1 || maxRes>1000 || !Number.isSafeInteger(spaceSize) || spaceSize<1 || spaceSize>CraftingCore.MAX_ID+1 ||
+     (action==='samplePool' && count>2000) || (!sample && action!=='samplePool' && start+count-1>CraftingCore.MAX_ID)) {
+    postMessage({type:'error',text:'Invalid scan inputs. Use at most 1,000,000 checks, 1,000 results, or 2,000 pool samples.'});return;
   }
-}
-
-function randTypes(id, TYPES) {
-  const r = mulberry32(id >>> 0);
-  const count = 2 + Math.floor(r()*3); // 2..4
-  const arr = [];
-  const pool = TYPES.slice();
-  for (let i=0;i<count && pool.length;i++) {
-    const idx = Math.floor(r()*pool.length);
-    arr.push(pool.splice(idx,1)[0]);
+  let found=0,checked=0;
+  const random=CraftingCore.mulberry32(CraftingCore.randTypes?((start>>>0)^Math.floor(start/4294967296)):start);
+  const weak=new Set(weaknesses),pool=[],seen=new Set();
+  for(let i=0;i<count;i++){
+    const id=sample || action==='samplePool'?Math.floor(random()*spaceSize):start+i;
+    const adds=CraftingCore.randTypes(id,TYPES);checked++;
+    if(action==='samplePool'){if(!seen.has(id)){pool.push({id,adds});seen.add(id);}}
+    else if(adds.some(t=>weak.has(t)) && !seen.has(id)){seen.add(id);postMessage({type:'result',id,adds});if(++found>=maxRes)break;}
+    if(i && i%10000===0)postMessage({type:'status',text:`Checked ${i} / ${count}`});
   }
-  return arr;
-}
-
-onmessage = (e) => {
-  // Supports three actions/modes:
-  // - sequential scan: check IDs start..start+count-1 (default)
-  // - sample mode: draw `count` random samples from a virtual space of size `spaceSize` and report matches
-  // - samplePool: draw `count` random samples and return the sampled pool (for combination searching client-side)
-  const { action, start, count, maxRes, weaknesses, TYPES, sample, spaceSize } = e.data;
-  let found = 0;
-  let checked = 0;
-  const weakSet = new Set(weaknesses || []);
-
-  if (action === 'samplePool') {
-    const total = Math.max(1, Number(spaceSize) || 1e9);
-    const rng = mulberry32((start>>>0) || 1);
-    const pool = [];
-    for (let i=0;i<count;i++) {
-      const id = Math.floor(rng()*total) >>> 0;
-      const adds = randTypes(id, TYPES);
-      pool.push({ id, adds });
-      if (i % 1000 === 0) postMessage({ type: 'status', text: `Sampled ${i} / ${count} (pool)` });
-    }
-    postMessage({ type: 'pool', pool });
-    postMessage({ type: 'done', checked: count, found: 0 });
-    return;
-  }
-
-  if (sample) {
-    // sample `count` ids across [0, spaceSize)
-    const total = Math.max(1, Number(spaceSize) || 1e9);
-    const rng = mulberry32((start>>>0) || 1);
-    for (let i=0; i<count; i++) {
-      const id = Math.floor(rng()*total) >>> 0;
-      const adds = randTypes(id, TYPES);
-      checked++;
-      if (adds.some(t => weakSet.has(t))) {
-        postMessage({ type: "result", id, adds });
-        found++;
-        if (found >= maxRes) break;
-      }
-      if (i % 1000 === 0) {
-        postMessage({ type: "status", text: `Sampled ${i} / ${count} (space ${total.toLocaleString()})… found ${found}` });
-      }
-    }
-    postMessage({ type: "done", checked, found });
-    return;
-  }
-
-  // sequential (original) behavior
-  for (let i=0; i<count; i++) {
-    const id = start + i;
-    const adds = randTypes(id, TYPES);
-    checked++;
-    if (adds.some(t => weakSet.has(t))) {
-      postMessage({ type: "result", id, adds });
-      found++;
-      if (found >= maxRes) break;
-    }
-    if (i % 1000 === 0) {
-      postMessage({ type: "status", text: `Scanned ${i} / ${count}… found ${found}` });
-    }
-  }
-  postMessage({ type: "done", checked, found });
+  if(action==='samplePool')postMessage({type:'pool',pool});
+  postMessage({type:'done',checked,found});
 };

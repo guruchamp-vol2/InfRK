@@ -49,3 +49,18 @@ The game will be available at `https://your-service-name.onrender.com`
 - Save powerful combinations as favorites
 - Check Type Insights for rare components
 - Everything is local and free. **No API key** required
+## Development and new controls
+
+Run `npm ci`, `npm test`, then `npm start` (Node 22 or newer required). Tests cover deterministic generation, progress recovery, worker validation and large IDs. The server only serves the game assets and `/health`.
+
+Daily Challenge picks a deterministic target for the UTC date. Progress export/import preserves history, favorites and challenge counters; malformed data is rejected or normalized. History restores a recipe without replaying a craft or increasing challenge progress. Element challenges require wins against all four elements.
+
+IDs from 0 through 999999999999 are supported. IDs below 2^32 preserve their previous type mapping; higher bits are mixed into the generator, so large IDs no longer silently wrap. Finite type combinations can still repeat across different IDs. Scans are bounded to one million checks, one thousand results and two thousand pool samples. Stop cancels both scan workers.
+
+## Workshop overhaul
+
+The responsive workshop now includes a ten-stage expedition, XP levels, a 34-type discovery collection, eight achievements, a named recipe library, a daily reward, and suggestions for counters on the current component page. Expedition stages enforce their component budget; the last two require counters to every target type. Stages unlock in order.
+
+Each new target/recipe combination grants research XP once; repeated attempts still count toward your craft record. Daily bonuses are limited to one per UTC date and recipes of three components or fewer. All progression, discoveries, recipes, favorites, and history are included in progress exports. Recipe import normalizes IDs and bounded counters; high IDs remain intact. These are local single-player records, editable through backups.
+
+`npm test` runs 10 regression tests, including reward deduplication, expedition conditions, daily limits, recipe naming and timestamps, progress normalization, and worker/large-ID behavior. Browser validation covers quest selection, crafting suggestions, recipe persistence, the research scanner, safe imports, and mobile layout. Theme choice persists across reloads.

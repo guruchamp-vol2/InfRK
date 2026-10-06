@@ -1,0 +1,10 @@
+
+node_modules/
+
+.env
+
+.jwt-secret
+
+game.db-wal
+
+game.db-shm
